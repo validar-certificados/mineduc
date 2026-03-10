@@ -173,7 +173,8 @@
 
       <p class="instruction-text" id="instruction">Verifique que el certificado presentado contenga la misma información que el documento que se muestra a continuación.</p>
 
-      <div class="pdf-container" id="pdf-view"></div>
+      <div class="pdf-container" id="pdf-view">
+        </div>
 
       <div class="actions" id="footer-actions">
         <button class="btn btn-blue" id="btn-descarga">📄 Ver Copia</button>
@@ -224,7 +225,7 @@
         const res = await fetch(WEBHOOK, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          // Envia el UUID a buscar en la carpeta de Drive
+          // Envía el UUID a buscar en la carpeta de Drive
           body: JSON.stringify({ uuid: uuidEscaneado, afp: 'MINEDUC' })
         });
         
@@ -232,13 +233,17 @@
         document.getElementById('spinner').style.display = 'none';
 
         if (data.found === true && data.pdf) {
+          // Mostrar elementos de éxito
           document.getElementById('success-banner').style.display = 'block';
           document.getElementById('instruction').style.display = 'block';
           document.getElementById('pdf-view').style.display = 'block';
           document.getElementById('footer-actions').style.display = 'flex';
           
+          // Cargar vista previa del PDF
           const pdfSrc = data.pdf.startsWith('data:') ? data.pdf : 'data:application/pdf;base64,' + data.pdf;
           document.getElementById('pdf-view').innerHTML = `<iframe src="${pdfSrc}#toolbar=0" title="Certificado Mineduc"></iframe>`;
+          
+          // Botón de descarga
           document.getElementById('btn-descarga').onclick = () => abrirCopia(data.pdf);
         } else {
           alert("El certificado no existe en la base validadora del Ministerio.");
