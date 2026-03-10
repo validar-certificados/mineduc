@@ -1,273 +1,61 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Validación de Certificado – Mineduc</title>
-  
-  <link rel="icon" href="https://www.google.com/s2/favicons?domain=mineduc.cl&sz=128" type="image/png" />
-  
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+// --- CONFIGURACIÓN DEL SERVIDOR ---
+
+// 1. Nombre EXACTO de la carpeta en Drive que funciona como 'base validadora'
+var NOMBRE_CARPETA_BASE = "base validadora";
+
+function doGet(e) {
+  // Maneja la solicitud de página (puedes ignorar esto si solo usas el HTML externo)
+  return HtmlService.createHtmlOutputFromFile('Index');
+}
+
+function doPost(e) {
+  // Maneja la búsqueda y validación
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var codigoVerificacion = data.code;
     
-    /* Fuente estándar gubernamental */
-    body { font-family: Arial, Helvetica, sans-serif; color: #333; line-height: 1.5; background: #fff; }
-
-    /* ── CLASES DE VISIBILIDAD RESPONSIVA ── */
-    .desktop-only { display: none !important; }
-    .mobile-only { display: block !important; }
-
-    /* =========================================
-       ESTILOS MOBILE (Por defecto)
-       ========================================= */
-    .header-mobile { padding: 20px 25px; border-bottom: 1px solid #eee; }
-    .header-mobile .brand { font-size: 22px; font-weight: 500; }
-    .header-mobile .brand span.blue { color: #1a5fb4; }
-    .header-mobile .brand span.red { color: #c0392b; font-weight: 700; }
-    .header-mobile .sub-brand { color: #1a5fb4; font-size: 18px; margin-top: 5px; }
-    .header-mobile .nav-line { color: #1a5fb4; font-size: 14px; margin-top: 10px; }
-
-    main { padding: 20px; max-width: 500px; margin: 0 auto; width: 100%; }
-
-    .mobile-challenge-text { font-size: 18px; color: #888; margin-bottom: 15px; font-weight: normal; }
-    .mobile-challenge-text strong { color: #555; }
-    
-    .challenge-box-inner { background: #f1f3f4; border-radius: 12px; padding: 25px; border: 1px solid #e0e0e0; margin-bottom: 20px; }
-    
-    .captcha-sim { background: #fff; border: 1px solid #dcdcdc; border-radius: 3px; padding: 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background .2s; max-width: 350px; margin: 0 auto; }
-    .captcha-left { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #000; }
-    .checkbox { width: 24px; height: 24px; border: 2px solid #c1c1c1; border-radius: 2px; position: relative; background: #fff; transition: all 0.2s; }
-    .checkbox.checked { border-color: #4CAF50; background: #4CAF50; }
-    .checkbox.checked::after { content: '✓'; color: #fff; position: absolute; left: 4px; top: -2px; font-size: 18px; font-weight: bold; }
-    .captcha-logo { text-align: center; font-size: 10px; color: #555; }
-    .captcha-logo img { width: 30px; display: block; margin: 0 auto 2px; }
-
-    /* CUADRO VERDE ÉXITO */
-    .success-box { display: none; background: #eef5e9; border-radius: 4px; padding: 15px; margin-bottom: 20px; border-left: 5px solid #8cc63f; }
-    .success-text { color: #3e7d32; font-size: 15px; font-weight: 400; }
-    .success-text a { color: #1a5fb4; text-decoration: none; font-weight: 500; }
-    .instruction-text { display: none; font-size: 14px; color: #555; margin-bottom: 15px; }
-
-    /* VISOR PDF */
-    .pdf-container { display: none; border: 12px solid #f0f0f0; border-radius: 4px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .pdf-container iframe { width: 100%; height: 500px; display: block; border: none; }
-
-    /* BOTONES */
-    .actions { display: none; flex-direction: column; gap: 12px; margin-top: 20px; }
-    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 4px; font-size: 15px; font-weight: bold; text-decoration: none; border: none; cursor: pointer; }
-    .btn-blue { background: #1a5fb4; color: #fff; }
-    .btn-white { background: #fff; color: #1a5fb4; border: 1px solid #1a5fb4; }
-
-    footer { padding: 30px 25px; border-top: 1px solid #eee; font-size: 13px; color: #666; max-width: 500px; margin: 0 auto; }
-    footer strong { color: #444; display: block; margin-bottom: 4px; }
-    footer .gob { color: #1a5fb4; font-weight: bold; margin-bottom: 10px; display: block; }
-    footer p { margin-bottom: 3px; }
-
-    /* SPINNER */
-    .spinner { display: none; text-align: center; padding: 40px 20px; }
-    .spinner svg { animation: rotate 1s linear infinite; width: 40px; height: 40px; }
-    @keyframes rotate { 100% { transform: rotate(360deg); } }
-
-    /* =========================================
-       ESTILOS DESKTOP (PC)
-       ========================================= */
-    @media (min-width: 768px) {
-      body { background: #e9ecef; } /* Fondo gris claro fuera de la caja */
-      .mobile-only { display: none !important; }
-      .desktop-only { display: block !important; }
-
-      .page-wrapper { background: #fff; max-width: 980px; margin: 20px auto; padding: 0 20px 40px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
-
-      /* HEADER WEB */
-      .header-desktop { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1a5fb4; padding-top: 20px; padding-bottom: 5px; }
-      .logo-mineduc img { width: 140px; display: block; }
-      .header-title-desktop { font-size: 20px; color: #1a5fb4; padding-bottom: 10px; }
-      .header-title-desktop .ayuda { font-weight: normal; }
-      .header-title-desktop .mineduc { color: #c0392b; font-weight: bold; }
-
-      /* BREADCRUMB WEB */
-      .breadcrumb { font-size: 11px; padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #666; margin-bottom: 20px; }
-      .breadcrumb a { color: #1a5fb4; text-decoration: none; }
-      .breadcrumb .arrow { color: #c0392b; font-size: 10px; margin-right: 5px; }
-
-      main { max-width: 100%; padding: 0; }
-      .section-title { color: #1a5fb4; font-size: 22px; font-weight: normal; margin-bottom: 20px; }
-
-      /* CAJA FORMULARIO WEB */
-      .challenge-box-inner { background: #fff; border: 1px solid #ddd; padding: 25px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-      
-      /* ALERTA AZUL WEB */
-      .info-banner { background: #f4f8fa; border: 1px solid #bce8f1; padding: 15px; border-radius: 4px; display: flex; align-items: center; gap: 15px; color: #31708f; font-size: 14px; margin-bottom: 30px; }
-      .info-icon { background: #3a87ad; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-family: serif; font-size: 15px; flex-shrink: 0; }
-      
-      .recaptcha-wrapper { background: #f9f9f9; padding: 30px; border: 1px solid #e3e3e3; border-radius: 4px; display: flex; justify-content: center; max-width: 500px; margin: 0 auto; }
-
-      .actions { flex-direction: row; justify-content: flex-end; }
-      .btn { padding: 10px 20px; font-size: 14px; }
-      footer { max-width: 100%; padding: 30px 0 0; }
-    }
-  </style>
-</head>
-<body>
-
-<div class="page-wrapper">
-
-  <header class="header-mobile mobile-only">
-    <div class="brand"><span class="blue">Ayuda</span><span class="red">Mineduc</span></div>
-    <div class="sub-brand">Certificados en tu Celular</div>
-    <div class="nav-line">Validación de Certificado</div>
-  </header>
-
-  <header class="header-desktop desktop-only">
-    <div class="logo-mineduc">
-      <img src="https://49659256.fs1.hubspotusercontent-na1.net/hubfs/49659256/PDFS/LOGOS%20AFP/LOGO%20MINEDUC.jpg" alt="Ministerio de Educación">
-    </div>
-    <div class="header-title-desktop">
-      <span class="ayuda">Ayuda<span class="mineduc">mineduc</span></span> - Portal de Certificados en Línea
-    </div>
-  </header>
-
-  <div class="breadcrumb desktop-only">
-    <span class="arrow">►</span> Ud. está en: <a href="#">Portal de Certificados en Línea</a> &gt; <a href="#">Inicio</a> &gt; <a href="#">Validar Certificado</a> &gt; Recaptcha Previo
-  </div>
-
-  <main>
-    <div id="step-captcha">
-      <h2 class="section-title desktop-only">Validación de Certificado</h2>
-      
-      <h3 class="mobile-challenge-text mobile-only"><strong>Estimado Usuario(a):</strong> Complete el desafío Recaptcha para continuar hacia la validacion del certificado.</h3>
-      
-      <div class="challenge-box-inner">
-        <div class="info-banner desktop-only">
-          <div class="info-icon">i</div>
-          <span><strong>Estimado Usuario:</strong> Complete el desafío Recaptcha para continuar hacia la validacion del certificado.</span>
-        </div>
-
-        <div class="recaptcha-wrapper">
-          <div class="captcha-sim" id="btn-captcha" onclick="procesarValidacion()">
-            <div class="captcha-left">
-              <div id="captcha-check" class="checkbox"></div>
-              <span>No soy un robot</span>
-            </div>
-            <div class="captcha-logo">
-              <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA">
-              reCAPTCHA<br>Privacidad - Condiciones
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="spinner" class="spinner">
-      <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#1a5fb4" stroke-width="5" stroke-dasharray="80, 200" stroke-dashoffset="0" stroke-linecap="round"/></svg>
-      <p style="color:#666; margin-top:10px; font-size:14px;">Buscando en la base validadora...</p>
-    </div>
-
-    <div id="step-result">
-      <div class="success-box" id="success-banner">
-        <div class="success-text">
-          El Ministerio de Educación confirma que el certificado en consulta es un documento válido y vigente.<br>
-          <a href="#">Ver más información</a>
-        </div>
-      </div>
-
-      <p class="instruction-text" id="instruction">Verifique que el certificado presentado contenga la misma información que el documento que se muestra a continuación.</p>
-
-      <div class="pdf-container" id="pdf-view">
-        </div>
-
-      <div class="actions" id="footer-actions">
-        <button class="btn btn-blue" id="btn-descarga">📄 Ver Copia</button>
-        <a href="#" class="btn btn-white">🏠 Volver al Portal</a>
-      </div>
-    </div>
-  </main>
-
-  <footer>
-    <strong>Ministerio de Educación</strong>
-    <span class="gob">Gobierno de Chile</span>
-    <p>Dirección: Av. Libertador Bernardo O'Higgins 1371.</p>
-    <p>Teléfono: +56 2 24066000</p>
-    <p>Versión 1.37.0</p>
-  </footer>
-
-</div> <script>
-  const WEBHOOK = 'https://hook.us2.make.com/iq6ps3txx1jaxr91mje7sx47ynbta3kb';
-  
-  // Extrae automáticamente el identificador si la URL se abre desde un código QR
-  const urlParams = new URLSearchParams(window.location.search);
-  const uuidEscaneado = urlParams.get('uuid') || urlParams.get('folio') || urlParams.get('id');
-
-  function abrirCopia(b64) {
-    const b = atob(b64.split(',')[1] || b64);
-    const a = new Uint8Array(b.length);
-    for(let i=0; i<b.length; i++) a[i] = b.charCodeAt(i);
-    const url = URL.createObjectURL(new Blob([a], {type: 'application/pdf'}));
-    window.open(url, '_blank');
-  }
-
-  async function procesarValidacion() {
-    if (!uuidEscaneado) {
-      alert("Error: No se detectó un código de certificado válido en la URL.");
-      return;
+    if (!codigoVerificacion) {
+      return response({ success: false, message: "No se proporcionó código." });
     }
 
-    // Efecto visual del check verde
-    document.getElementById('captcha-check').classList.add('checked');
-    document.getElementById('btn-captcha').style.pointerEvents = 'none';
-    
-    // Simula una breve espera natural humana antes de consultar el webhook
-    setTimeout(async () => {
-      document.getElementById('step-captcha').style.display = 'none';
-      document.getElementById('spinner').style.display = 'block';
+    // 1. Buscar la carpeta 'base validadora'
+    var carpetas = DriveApp.getFoldersByName(NOMBRE_CARPETA_BASE);
+    if (!carpetas.hasNext()) {
+      return response({ success: false, message: "Carpeta 'base validadora' no encontrada en Drive." });
+    }
+    var carpetaBase = carpetas.next();
 
-      try {
-        const res = await fetch(WEBHOOK, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          // Envía el UUID a buscar en la carpeta de Drive
-          body: JSON.stringify({ uuid: uuidEscaneado, afp: 'MINEDUC' })
-        });
-        
-        const data = await res.json();
-        document.getElementById('spinner').style.display = 'none';
+    // 2. Buscar el archivo por nombre exacto dentro de esa carpeta
+    // Asumimos que el código ingresado coincide con el nombre del archivo (con o sin extensión)
+    var query = "name = '" + codigoVerificacion + "' or name = '" + codigoVerificacion + ".pdf'";
+    var archivos = carpetaBase.searchFiles(query);
 
-        if (data.found === true && data.pdf) {
-          // Mostrar elementos de éxito
-          document.getElementById('success-banner').style.display = 'block';
-          document.getElementById('instruction').style.display = 'block';
-          document.getElementById('pdf-view').style.display = 'block';
-          document.getElementById('footer-actions').style.display = 'flex';
-          
-          // Cargar vista previa del PDF
-          const pdfSrc = data.pdf.startsWith('data:') ? data.pdf : 'data:application/pdf;base64,' + data.pdf;
-          document.getElementById('pdf-view').innerHTML = `<iframe src="${pdfSrc}#toolbar=0" title="Certificado Mineduc"></iframe>`;
-          
-          // Botón de descarga
-          document.getElementById('btn-descarga').onclick = () => abrirCopia(data.pdf);
-        } else {
-          alert("El certificado no existe en la base validadora del Ministerio.");
-          location.reload();
-        }
-      } catch (err) {
-        alert("Error de conexión con el servidor. Intente nuevamente.");
-        location.reload();
-      }
-    }, 600);
-  }
+    if (archivos.hasNext()) {
+      var archivoValidado = archivos.next();
+      
+      // 3. Obtener el archivo como base64 para embedirlo en el HTML
+      var blob = archivoValidado.getBlob();
+      var contentType = blob.getContentType();
+      var base64Data = Utilities.base64Encode(blob.getBytes());
+      var fileUrl = "data:" + contentType + ";base64," + base64Data;
 
-  // AUTOMATIZACIÓN AL ESCANEAR:
-  // Si entra con el UUID por el código QR, dispara la validación sola después de 1 segundo
-  window.onload = () => {
-    if (uuidEscaneado) {
-      setTimeout(() => {
-        procesarValidacion();
-      }, 1000);
+      return response({
+        success: true,
+        message: "Documento válido y vigente.",
+        fileName: archivoValidado.getName(),
+        fileType: contentType,
+        fileContent: fileUrl // URL base64 lista para el iframe/object
+      });
     } else {
-      document.getElementById('btn-captcha').innerHTML = "<div style='color:#c0392b; padding:10px; text-align:center;'>Falta el parámetro de escaneo en la URL.</div>";
-      document.getElementById('btn-captcha').style.pointerEvents = 'none';
+      return response({ success: false, message: "Código de verificación no encontrado o documento no válido." });
     }
-  };
-</script>
-</body>
-</html>
+
+  } catch (error) {
+    return response({ success: false, message: "Error interno del servidor: " + error.toString() });
+  }
+}
+
+// Función auxiliar para responder en formato JSON
+function response(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
